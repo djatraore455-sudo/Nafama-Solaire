@@ -21,12 +21,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nafama.solaire.ui.theme.NafamaSolaireTheme
+
+private data class Installation(
+    val farmName: String,
+    val location: String,
+    val pumpName: String,
+    val power: String
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,10 +59,22 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun IrrigationDashboard() {
-    val installations = listOf(
-        "Ferme familiale - Korhogo" to "Pompe solaire PS-001",
-        "Champ de maïs - Sinématiali" to "Pompe solaire PS-002"
+    val initialInstallations = listOf(
+        Installation("Ferme familiale", "Korhogo", "Pompe solaire PS-001", "620 W"),
+        Installation("Champ de maïs", "Sinématiali", "Pompe solaire PS-002", "620 W")
     )
+    var installations by remember { mutableStateOf(initialInstallations) }
+    var showInstallationForm by remember { mutableStateOf(false) }
+
+    if (showInstallationForm) {
+        InstallationForm(
+            onDismiss = { showInstallationForm = false },
+            onSave = { installation ->
+                installations = installations + installation
+                showInstallationForm = false
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -107,7 +132,7 @@ private fun IrrigationDashboard() {
         item {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Button(
-                    onClick = { },
+                    onClick = { showInstallationForm = true },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Ajouter une installation")
@@ -177,14 +202,81 @@ private fun IrrigationDashboard() {
             )
         }
 
-        items(installations) { (farm, pump) ->
-            InstallationItem(farm = farm, pump = pump)
+        items(installations) { installation ->
+            InstallationItem(installation)
         }
 
         item {
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
+}
+
+@Composable
+private fun InstallationForm(
+    onDismiss: () -> Unit,
+    onSave: (Installation) -> Unit
+) {
+    var farmName by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
+    var pumpName by remember { mutableStateOf("") }
+    var power by remember { mutableStateOf("") }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ajouter une installation") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = farmName,
+                    onValueChange = { farmName = it },
+                    label = { Text("Nom de la ferme") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = location,
+                    onValueChange = { location = it },
+                    label = { Text("Localisation") },
+                    placeholder = { Text("Ex. Korhogo") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = pumpName,
+                    onValueChange = { pumpName = it },
+                    label = { Text("Nom de la pompe") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = power,
+                    onValueChange = { power = it },
+                    label = { Text("Puissance (W)") },
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(
+                        Installation(
+                            farmName.trim(),
+                            location.trim().ifBlank { "Localisation à préciser" },
+                            pumpName.trim(),
+                            power.trim().ifBlank { "Puissance à préciser" }
+                        )
+                    )
+                },
+                enabled = farmName.isNotBlank() && pumpName.isNotBlank()
+            ) {
+                Text("Enregistrer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler")
+            }
+        }
+    )
 }
 
 @Composable
@@ -218,7 +310,7 @@ private fun EnergyValue(label: String, value: String) {
 }
 
 @Composable
-private fun InstallationItem(farm: String, pump: String) {
+private fun InstallationItem(installation: Installation) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -227,10 +319,10 @@ private fun InstallationItem(farm: String, pump: String) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = farm, fontWeight = FontWeight.SemiBold)
+                Text(text = installation.farmName, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = pump,
+                    text = "${installation.pumpName} · ${installation.location} · ${installation.power}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
